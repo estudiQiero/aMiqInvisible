@@ -1,4 +1,11 @@
 ---
+// Dos temes, sempre clars (no hi ha mode fosc):
+// - "festa" (per defecte): el tema propi de l'app, alegre i de colors.
+// - "nadal": s'activa sol si s'acosta Nadal (de l'1 de desembre al 6 de
+//   gener) o si el nom de l'event conté "Nadal", "Navidad" o "Christmas".
+//   La regla és a src/lib/amic.js (isNadal); l'script de sota només aplica
+//   la part de la data abans de pintar, perquè no hi hagi un canvi de colors
+//   visible en carregar la pàgina.
 interface Props {
   title: string;
   description: string;
@@ -8,68 +15,107 @@ const { title, description, noindex = false } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="ca">
+<html lang="ca" data-theme="festa">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
     <title>{title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta name="theme-color" content="#7F1D1D" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>" />
+    <script is:inline>
+      (function () {
+        var d = new Date(), m = d.getMonth(), day = d.getDate();
+        if (m === 11 || (m === 0 && day <= 6)) document.documentElement.dataset.theme = 'nadal';
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <div class="snow" aria-hidden="true"></div>
     <slot />
+    <script is:inline>
+      (function () {
+        var snow = document.querySelector('.snow');
+        var flakes = ['❄', '❅', '❆', '•'];
+        for (var i = 0; i < 28; i++) {
+          var s = document.createElement('span');
+          s.textContent = flakes[i % flakes.length];
+          s.style.left = Math.random() * 100 + '%';
+          s.style.fontSize = 8 + Math.random() * 14 + 'px';
+          s.style.animationDuration = 8 + Math.random() * 10 + 's';
+          s.style.animationDelay = -Math.random() * 18 + 's';
+          s.style.opacity = 0.35 + Math.random() * 0.5;
+          snow.appendChild(s);
+        }
+      })();
+    </script>
   </body>
 </html>
 
 <style is:global>
+  /* ---------- Tema propi: "festa" ---------- */
   :root {
-    --bg: #FBF6EF;
+    --bg: #FFF9F2;
     --card: #FFFFFF;
-    --ink: #2A1F1A;
-    --ink-soft: #6B5B52;
-    --line: #EADFD3;
-    --red: #B42318;
-    --red-deep: #7F1D1D;
-    --green: #166534;
+    --ink: #2B2140;
+    --ink-soft: #6E6584;
+    --line: #EEE4F3;
+    --primary: #7C3AED;      /* botons i títols */
+    --primary-ink: #FFFFFF;
+    --highlight: #F2545B;    /* el nom de qui et toca */
+    --tag: #E09F00;          /* nom de l'event a la pàgina de revelació */
     --wa: #25D366;
-    --wa-deep: #128C7E;
-    --gold: #C8961E;
-    --radius: 14px;
-    --shadow: 0 1px 2px rgba(42,31,26,.06), 0 10px 30px rgba(127,29,29,.10);
+    --radius: 18px;
+    --shadow: 0 1px 2px rgba(43,33,64,.05), 0 12px 32px rgba(124,58,237,.10);
+    /* Colors del confeti i dels punts del fons */
+    --c1: #7C3AED; --c2: #F2545B; --c3: #FFC93C; --c4: #2EC4B6;
+    --decor:
+      radial-gradient(circle at 8% 12%, rgba(255,201,60,.35) 0 6px, transparent 7px),
+      radial-gradient(circle at 92% 8%, rgba(46,196,182,.30) 0 9px, transparent 10px),
+      radial-gradient(circle at 85% 38%, rgba(242,84,91,.22) 0 5px, transparent 6px),
+      radial-gradient(circle at 6% 55%, rgba(124,58,237,.18) 0 8px, transparent 9px),
+      radial-gradient(circle at 95% 75%, rgba(255,201,60,.30) 0 7px, transparent 8px),
+      radial-gradient(circle at 10% 90%, rgba(46,196,182,.25) 0 6px, transparent 7px);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1A1311;
-      --card: #251B18;
-      --ink: #F6EEE8;
-      --ink-soft: #C2B2A8;
-      --line: #3B2C27;
-      --red: #F0645A;
-      --red-deep: #7F1D1D;
-      --green: #4ADE80;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
-    }
+
+  /* ---------- Tema "nadal" ---------- */
+  :root[data-theme="nadal"] {
+    --bg: #FBF7F0;
+    --card: #FFFFFF;
+    --ink: #1F2A24;
+    --ink-soft: #5E6B62;
+    --line: #E8E0D2;
+    --primary: #C62828;
+    --primary-ink: #FFFFFF;
+    --highlight: #1F7A3E;
+    --tag: #B8860B;
+    --shadow: 0 1px 2px rgba(31,42,36,.05), 0 12px 32px rgba(198,40,40,.10);
+    --c1: #C62828; --c2: #1F7A3E; --c3: #D4A017; --c4: #FFFFFF;
+    --decor:
+      linear-gradient(180deg, rgba(31,122,62,.06), transparent 220px);
   }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
-    background: var(--bg);
+    background: var(--decor), var(--bg);
+    background-attachment: fixed;
     color: var(--ink);
     font: 16px/1.5 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    transition: background-color .4s ease;
   }
-  h1, h2, h3 { font-family: 'Zilla Slab', Georgia, serif; line-height: 1.15; margin: 0; }
+  h1, h2, h3 { font-family: Fredoka, Inter, system-ui, sans-serif; font-weight: 600; line-height: 1.15; margin: 0; }
   button, input, textarea, select { font: inherit; color: inherit; }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+  .wrap { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
   .card {
     background: var(--card);
     border: 1px solid var(--line);
@@ -82,14 +128,14 @@ const { title, description, noindex = false } = Astro.props;
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     border: 0; border-radius: 999px; cursor: pointer;
     padding: 12px 20px; font-weight: 600; text-decoration: none;
-    background: var(--red); color: #fff;
-    transition: transform .08s ease, filter .15s ease;
+    background: var(--primary); color: var(--primary-ink);
+    transition: transform .08s ease, filter .15s ease, background-color .4s ease;
   }
   .btn:hover { filter: brightness(1.07); }
   .btn:active { transform: scale(.98); }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn.wa { background: var(--wa); color: #06331C; }
-  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn.ghost { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
   .btn.small { padding: 8px 14px; font-size: 14px; }
   .btn.block { width: 100%; }
   .muted { color: var(--ink-soft); }
@@ -98,8 +144,22 @@ const { title, description, noindex = false } = Astro.props;
     width: 100%;
     padding: 11px 12px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--bg);
   }
-  input:focus, textarea:focus, select:focus { outline: 2px solid var(--red); outline-offset: 1px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+  /* Coses que només surten amb el tema de Nadal */
+  .nadal-only { display: none; }
+  [data-theme="nadal"] .nadal-only { display: inline; }
+
+  /* Neu (només tema de Nadal) */
+  .snow { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; display: none; }
+  [data-theme="nadal"] .snow { display: block; }
+  .snow span { position: absolute; top: -24px; color: #9DB8C9; animation: fall linear infinite; }
+  @keyframes fall {
+    from { transform: translate(0, -24px); }
+    to { transform: translate(30px, 105vh); }
+  }
+  @media (prefers-reduced-motion: reduce) { .snow { display: none !important; } }
 </style>

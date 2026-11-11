@@ -43,8 +43,8 @@ import Layout from '../layouts/Layout.astro';
 
 <style>
   .wrap { text-align: center; padding-top: 40px; }
-  .event { text-transform: uppercase; letter-spacing: .12em; font-size: 13px; font-weight: 700; color: var(--gold); margin: 0 0 8px; }
-  h1 { font-size: 36px; color: var(--red); margin-bottom: 10px; }
+  .event { text-transform: uppercase; letter-spacing: .12em; font-size: 13px; font-weight: 700; color: var(--tag); margin: 0 0 8px; }
+  h1 { font-size: 36px; color: var(--primary); margin-bottom: 10px; }
   .box {
     position: relative; margin: 32px auto 8px; display: block;
     border: 0; background: none; cursor: pointer; font-size: 120px; line-height: 1;
@@ -61,8 +61,8 @@ import Layout from '../layouts/Layout.astro';
   .reveal { animation: fadeUp .5s ease both; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
   .giftee {
-    font-family: 'Zilla Slab', Georgia, serif; font-weight: 700; font-size: 52px; line-height: 1.1;
-    color: var(--green); margin: 4px 0 20px; word-break: break-word;
+    font-family: Fredoka, Inter, sans-serif; font-weight: 700; font-size: 52px; line-height: 1.1;
+    color: var(--highlight); margin: 4px 0 20px; word-break: break-word;
   }
   .details { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
   .details :global(div) { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; min-width: 130px; }
@@ -72,11 +72,11 @@ import Layout from '../layouts/Layout.astro';
   .center { text-align: center; }
   .foot { margin-top: 48px; font-size: 14px; }
   .foot a { color: inherit; }
-  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #confetti { position: fixed; inset: 0; z-index: 2; width: 100%; height: 100%; pointer-events: none; }
 </style>
 
 <script>
-  import { decodePayload } from '../lib/amic.js';
+  import { applyTheme, decodePayload } from '../lib/amic.js';
   const $ = (s) => document.querySelector(s);
 
   const data = decodePayload(location.hash.slice(1));
@@ -84,6 +84,7 @@ import Layout from '../layouts/Layout.astro';
     $('#bad').hidden = false;
   } else {
     $('#ok').hidden = false;
+    applyTheme(data.e);
     if (data.e) { $('#event').textContent = data.e; document.title = `${data.e} · El teu amic invisible 🎁`; }
     $('#hello').textContent = `Hola, ${data.n}!`;
     $('#giftee').textContent = data.g;
@@ -126,7 +127,8 @@ import Layout from '../layouts/Layout.astro';
     const dpr = devicePixelRatio || 1;
     c.width = innerWidth * dpr; c.height = innerHeight * dpr;
     ctx.scale(dpr, dpr);
-    const colors = ['#B42318', '#166534', '#C8961E', '#25D366', '#F6EEE8'];
+    const cs = getComputedStyle(document.documentElement);
+    const colors = ['--c1', '--c2', '--c3', '--c4'].map((v) => cs.getPropertyValue(v).trim());
     const parts = Array.from({ length: 140 }, () => ({
       x: innerWidth / 2, y: innerHeight / 3,
       vx: (Math.random() - 0.5) * 14, vy: Math.random() * -12 - 4,

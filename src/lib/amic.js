@@ -118,3 +118,24 @@ export function whatsappUrl(phone, text) {
   const p = normalizePhone(phone);
   return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Tema de Nadal: s'activa si s'acosta Nadal (de l'1 de desembre al 6 de
+ * gener) o si el nom de l'event parla de Nadal (en català, castellà o anglès).
+ */
+export function isNadal(eventName = '', today = new Date()) {
+  const m = today.getMonth();
+  const d = today.getDate();
+  if (m === 11 || (m === 0 && d <= 6)) return true;
+  const text = String(eventName).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return /nadal|navidad|christmas/.test(text);
+}
+
+export function applyTheme(eventName) {
+  document.documentElement.dataset.theme = isNadal(eventName) ? 'nadal' : 'festa';
+}
+
+/** El contacte d'un participant pot ser un mòbil o un correu. */
+export function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || '').trim());
+}
