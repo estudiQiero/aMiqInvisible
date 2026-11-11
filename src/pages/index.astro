@@ -1,0 +1,396 @@
+---
+// Amic invisible — pàgina de qui organitza.
+// Qui organitza apunta els participants (nom + mòbil), fa el sorteig al
+// navegador i envia a cadascú, per WhatsApp, un enllaç personal que només
+// revela a qui li ha de fer el regal aquella persona. Qui organitza no veu
+// el resultat en cap moment, així que també pot participar.
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="Amic invisible per WhatsApp"
+  description="Organitza un amic invisible en un minut i envia a cada persona el seu resultat per WhatsApp."
+>
+  <main class="wrap">
+    <header class="hero">
+      <div class="gift" aria-hidden="true">🎁</div>
+      <h1>Amic invisible</h1>
+      <p class="muted">Apunta els participants, fes el sorteig i envia a cadascú el seu enllaç per WhatsApp. Ni tan sols tu sabràs a qui li ha tocat cadascú.</p>
+    </header>
+
+    <!-- Pas 1: configuració -->
+    <section id="setup">
+      <div class="card">
+        <h2>1. L'esdeveniment</h2>
+        <div class="grid">
+          <div class="full">
+            <label for="ev-name">Nom de l'amic invisible</label>
+            <input id="ev-name" type="text" placeholder="Nadal en família 2026" maxlength="60" />
+          </div>
+          <div>
+            <label for="ev-budget">Pressupost</label>
+            <input id="ev-budget" type="text" placeholder="20 €" maxlength="20" />
+          </div>
+          <div>
+            <label for="ev-date">Data de l'intercanvi</label>
+            <input id="ev-date" type="date" />
+          </div>
+          <div class="full">
+            <label for="ev-msg">Missatge per a tothom <span class="muted">(opcional)</span></label>
+            <textarea id="ev-msg" rows="2" maxlength="200" placeholder="Ens veiem a casa l'àvia. Res de mitjons!"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. Participantes</h2>
+        <p class="muted small">Posa el mòbil per obrir WhatsApp directament amb aquella persona. Si el deixes buit, WhatsApp et deixarà triar el contacte.</p>
+        <ul id="people" class="people"></ul>
+        <button id="add-person" class="btn ghost small" type="button">+ Afegeix un participant</button>
+      </div>
+
+      <div class="card">
+        <h2>3. Exclusions <span class="muted small">(opcional)</span></h2>
+        <p class="muted small">Parelles que no es poden tocar entre elles (per exemple, les que ja es fan un regal).</p>
+        <ul id="exclusions" class="exclusions"></ul>
+        <button id="add-exclusion" class="btn ghost small" type="button">+ Afegeix una exclusió</button>
+      </div>
+
+      <p id="setup-error" class="error" role="alert" hidden></p>
+      <button id="do-draw" class="btn block big" type="button">🎲 Fer el sorteig</button>
+    </section>
+
+    <!-- Pas 2: enviament -->
+    <section id="send" hidden>
+      <div class="card">
+        <h2 id="send-title">Sorteig fet!</h2>
+        <p class="muted">Envia a cada persona el seu enllaç. El resultat està amagat: només el veurà qui obri el seu enllaç.</p>
+        <div class="progress"><div id="progress-bar"></div></div>
+        <p id="progress-text" class="muted small"></p>
+        <ul id="links" class="links"></ul>
+      </div>
+      <div class="actions">
+        <button id="edit" class="btn ghost" type="button">✏️ Edita els participants</button>
+        <button id="redraw" class="btn ghost" type="button">🔄 Repeteix el sorteig</button>
+        <button id="reset" class="btn ghost" type="button">🗑️ Comença de zero</button>
+      </div>
+      <p class="muted small note">Les dades es desen només en aquest navegador, perquè puguis tornar a enviar un enllaç si algú el perd. No s'envien a cap servidor.</p>
+    </section>
+  </main>
+
+  <template id="person-tpl">
+    <li class="person">
+      <input class="p-name" type="text" placeholder="Nom" maxlength="40" aria-label="Nom" />
+      <input class="p-phone" type="tel" placeholder="Mòbil (opcional)" maxlength="20" aria-label="Mòbil" inputmode="tel" />
+      <button class="remove" type="button" aria-label="Treu">✕</button>
+    </li>
+  </template>
+
+  <template id="exclusion-tpl">
+    <li class="exclusion">
+      <select class="x-a" aria-label="Persona"></select>
+      <span aria-hidden="true">↮</span>
+      <select class="x-b" aria-label="No li pot tocar"></select>
+      <button class="remove" type="button" aria-label="Treu">✕</button>
+    </li>
+  </template>
+
+  <template id="link-tpl">
+    <li class="link-row">
+      <div class="who">
+        <span class="check" aria-hidden="true">✓</span>
+        <div>
+          <strong class="l-name"></strong>
+          <div class="l-phone muted small"></div>
+        </div>
+      </div>
+      <div class="link-actions">
+        <a class="btn wa small l-wa" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.07-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.48.71.31 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35zM12.05 21.8h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98 1-3.63-.24-.37a9.8 9.8 0 0 1-1.5-5.22c0-5.42 4.41-9.83 9.84-9.83a9.77 9.77 0 0 1 6.95 2.88 9.77 9.77 0 0 1 2.88 6.96c0 5.42-4.41 9.83-9.84 9.83zm8.37-18.2A11.75 11.75 0 0 0 12.05.13C5.5.13.17 5.46.17 12a11.8 11.8 0 0 0 1.58 5.92L.07 24l6.23-1.63a11.82 11.82 0 0 0 5.74 1.46h.01c6.54 0 11.87-5.33 11.88-11.88a11.8 11.8 0 0 0-3.47-8.4z"/></svg>
+          Envia
+        </a>
+        <button class="btn ghost small l-copy" type="button">Copia l'enllaç</button>
+      </div>
+    </li>
+  </template>
+</Layout>
+
+<style>
+  .hero { text-align: center; padding: 16px 0 4px; }
+  .hero h1 { font-size: 40px; color: var(--red); }
+  .hero p { max-width: 460px; margin: 10px auto 0; }
+  .gift { font-size: 56px; animation: wobble 2.4s ease-in-out infinite; display: inline-block; }
+  @keyframes wobble { 0%,100% { transform: rotate(0); } 10% { transform: rotate(-10deg); } 20% { transform: rotate(8deg); } 30% { transform: rotate(0); } }
+  @media (prefers-reduced-motion: reduce) { .gift { animation: none; } }
+  h2 { font-size: 22px; margin-bottom: 12px; }
+  .small { font-size: 14px; }
+  h2 .small { font-family: Inter, sans-serif; font-weight: 400; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid .full { grid-column: 1 / -1; }
+  @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+
+  .people, .exclusions, .links { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; }
+  :global(.person) { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+  :global(.exclusion) { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
+  @media (max-width: 420px) {
+    :global(.person) { grid-template-columns: 1fr auto; }
+    :global(.person .p-phone) { grid-column: 1; }
+    :global(.person) { padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+  }
+  :global(.remove) {
+    border: 0; background: transparent; cursor: pointer; color: var(--ink-soft);
+    width: 36px; height: 36px; border-radius: 50%; font-size: 15px;
+  }
+  :global(.remove:hover) { background: var(--line); color: var(--red); }
+
+  .error {
+    background: rgba(180,35,24,.1); color: var(--red); border-radius: 10px;
+    padding: 10px 14px; margin: 16px 0 0; font-weight: 500;
+  }
+  .big { margin-top: 20px; padding: 16px; font-size: 18px; }
+
+  .progress { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 12px 0 6px; }
+  #progress-bar { height: 100%; width: 0; background: var(--wa); transition: width .3s ease; }
+
+  :global(.link-row) {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+  }
+  :global(.link-row .who) { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  :global(.link-row .check) {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line);
+    display: grid; place-items: center; color: transparent; font-size: 14px; flex: none;
+  }
+  :global(.link-row.sent .check) { background: var(--wa); border-color: var(--wa); color: #fff; }
+  :global(.link-row.sent) { background: rgba(37,211,102,.06); }
+  :global(.link-actions) { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+  .note { text-align: center; margin-top: 16px; }
+</style>
+
+<script>
+  import { draw, encodePayload, normalizePhone, whatsappUrl } from '../lib/amic.js';
+
+  const STORAGE = 'amic-invisible:v1';
+  const $ = (sel) => document.querySelector(sel);
+
+  /** Estat: { event:{name,budget,date,msg}, people:[{name,phone}], exclusions:[[a,b]], links:null|[{name,phone,token,sent}] } */
+  let state = load() || {
+    event: { name: '', budget: '', date: '', msg: '' },
+    people: [{ name: '', phone: '' }, { name: '', phone: '' }, { name: '', phone: '' }],
+    exclusions: [],
+    links: null,
+  };
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE)); } catch { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE, JSON.stringify(state)); } catch {}
+  }
+
+  // ---------- Configuració ----------
+  const evFields = { name: '#ev-name', budget: '#ev-budget', date: '#ev-date', msg: '#ev-msg' };
+  for (const [key, sel] of Object.entries(evFields)) {
+    const el = $(sel);
+    el.value = state.event[key] || '';
+    el.addEventListener('input', () => { state.event[key] = el.value; save(); });
+  }
+
+  function renderPeople() {
+    const list = $('#people');
+    list.innerHTML = '';
+    state.people.forEach((p, i) => {
+      const li = $('#person-tpl').content.firstElementChild.cloneNode(true);
+      const name = li.querySelector('.p-name');
+      const phone = li.querySelector('.p-phone');
+      name.value = p.name;
+      phone.value = p.phone;
+      name.addEventListener('input', () => { p.name = name.value; save(); renderExclusionOptions(); });
+      phone.addEventListener('input', () => { p.phone = phone.value; save(); });
+      name.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); phone.focus(); }
+      });
+      phone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (i === state.people.length - 1) addPerson();
+          else list.children[i + 1]?.querySelector('.p-name').focus();
+        }
+      });
+      li.querySelector('.remove').addEventListener('click', () => {
+        state.people.splice(i, 1);
+        save(); renderPeople(); renderExclusions();
+      });
+      list.appendChild(li);
+    });
+  }
+
+  function addPerson() {
+    state.people.push({ name: '', phone: '' });
+    save(); renderPeople();
+    $('#people').lastElementChild.querySelector('.p-name').focus();
+  }
+  $('#add-person').addEventListener('click', addPerson);
+
+  const namesNow = () => state.people.map((p) => p.name.trim()).filter(Boolean);
+
+  function fillSelect(select, value) {
+    const names = namesNow();
+    select.innerHTML = '<option value="">— Tria —</option>' +
+      names.map((n) => `<option>${escapeHtml(n)}</option>`).join('');
+    select.value = names.includes(value) ? value : '';
+  }
+
+  function renderExclusions() {
+    const list = $('#exclusions');
+    list.innerHTML = '';
+    state.exclusions.forEach((pair, i) => {
+      const li = $('#exclusion-tpl').content.firstElementChild.cloneNode(true);
+      const [a, b] = [li.querySelector('.x-a'), li.querySelector('.x-b')];
+      fillSelect(a, pair[0]);
+      fillSelect(b, pair[1]);
+      a.addEventListener('change', () => { pair[0] = a.value; save(); });
+      b.addEventListener('change', () => { pair[1] = b.value; save(); });
+      li.querySelector('.remove').addEventListener('click', () => {
+        state.exclusions.splice(i, 1); save(); renderExclusions();
+      });
+      list.appendChild(li);
+    });
+  }
+  function renderExclusionOptions() {
+    [...$('#exclusions').children].forEach((li, i) => {
+      fillSelect(li.querySelector('.x-a'), state.exclusions[i][0]);
+      fillSelect(li.querySelector('.x-b'), state.exclusions[i][1]);
+    });
+  }
+  $('#add-exclusion').addEventListener('click', () => {
+    state.exclusions.push(['', '']); save(); renderExclusions();
+  });
+
+  function showError(msg) {
+    const el = $('#setup-error');
+    el.textContent = msg;
+    el.hidden = !msg;
+    if (msg) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function validate() {
+    const people = state.people
+      .map((p) => ({ name: p.name.trim(), phone: p.phone.trim() }))
+      .filter((p) => p.name);
+    if (people.length < 3) return { error: 'Calen com a mínim 3 participants amb nom.' };
+    const seen = new Set();
+    for (const p of people) {
+      const key = p.name.toLocaleLowerCase('ca');
+      if (seen.has(key)) return { error: `«${p.name}» està repetit. Fes servir noms diferents (per exemple, afegeix la inicial del cognom).` };
+      seen.add(key);
+      if (p.phone && normalizePhone(p.phone).length < 8) return { error: `El mòbil de ${p.name} no sembla vàlid.` };
+    }
+    const names = people.map((p) => p.name);
+    const exclusions = state.exclusions.filter(([a, b]) => a && b && a !== b && names.includes(a) && names.includes(b));
+    return { people, exclusions };
+  }
+
+  function doDraw() {
+    const v = validate();
+    if (v.error) return showError(v.error);
+    const result = draw(v.people.map((p) => p.name), v.exclusions);
+    if (!result) return showError('Amb aquestes exclusions no hi ha manera de fer el sorteig. Treu-ne alguna i torna-ho a provar.');
+    showError('');
+    const ev = state.event;
+    state.links = v.people.map((p) => ({
+      name: p.name,
+      phone: p.phone,
+      sent: false,
+      token: encodePayload({
+        e: ev.name.trim(), b: ev.budget.trim(), d: ev.date, m: ev.msg.trim(),
+        n: p.name, g: result.get(p.name),
+      }),
+    }));
+    save();
+    showSend();
+  }
+
+  $('#do-draw').addEventListener('click', doDraw);
+
+  // ---------- Enviament ----------
+  const linkFor = (l) => `${location.origin}/veure/#${l.token}`;
+
+  function messageFor(l) {
+    const ev = state.event.name.trim();
+    return `🎁 Hola, ${l.name}! Ja tenim el sorteig de l'amic invisible${ev ? ` «${ev}»` : ''}.\n\n` +
+      `Obre el teu enllaç secret per descobrir a qui li has de fer el regal (no l'ensenyis a ningú 🤫):\n${linkFor(l)}`;
+  }
+
+  function renderProgress() {
+    const total = state.links.length;
+    const sent = state.links.filter((l) => l.sent).length;
+    $('#progress-bar').style.width = `${(sent / total) * 100}%`;
+    $('#progress-text').textContent = sent === total
+      ? `Fet! Has enviat els ${total} enllaços. 🎉`
+      : `Enviats ${sent} de ${total}`;
+  }
+
+  function showSend() {
+    $('#setup').hidden = true;
+    $('#send').hidden = false;
+    $('#send-title').textContent = state.event.name.trim() ? `Sorteig fet! · ${state.event.name.trim()}` : 'Sorteig fet!';
+    const list = $('#links');
+    list.innerHTML = '';
+    state.links.forEach((l) => {
+      const li = $('#link-tpl').content.firstElementChild.cloneNode(true);
+      li.querySelector('.l-name').textContent = l.name;
+      li.querySelector('.l-phone').textContent = l.phone ? `+${normalizePhone(l.phone)}` : 'Sense mòbil: triaràs el contacte a WhatsApp';
+      li.classList.toggle('sent', l.sent);
+      const markSent = () => { l.sent = true; li.classList.add('sent'); save(); renderProgress(); };
+      const wa = li.querySelector('.l-wa');
+      wa.href = whatsappUrl(l.phone, messageFor(l));
+      wa.addEventListener('click', markSent);
+      const copy = li.querySelector('.l-copy');
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(messageFor(l));
+          copy.textContent = 'Copiat!';
+        } catch {
+          prompt('Copia aquest missatge:', messageFor(l));
+        }
+        markSent();
+        setTimeout(() => (copy.textContent = "Copia l'enllaç"), 1800);
+      });
+      list.appendChild(li);
+    });
+    renderProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showSetup() {
+    $('#send').hidden = true;
+    $('#setup').hidden = false;
+    renderPeople(); renderExclusions();
+  }
+
+  $('#edit').addEventListener('click', () => {
+    if (state.links.some((l) => l.sent) &&
+        !confirm('Si canvies els participants, hauràs de repetir el sorteig i tornar a enviar tots els enllaços (els que ja has enviat deixaran de ser vàlids per al nou sorteig). Vols continuar?')) return;
+    state.links = null; save(); showSetup();
+  });
+  $('#redraw').addEventListener('click', () => {
+    if (!confirm("Es farà un sorteig nou i hauràs de tornar a enviar tots els enllaços. N'estàs segur?")) return;
+    doDraw();
+  });
+  $('#reset').addEventListener('click', () => {
+    if (!confirm("S'esborraran l'esdeveniment, els participants i el sorteig. N'estàs segur?")) return;
+    try { localStorage.removeItem(STORAGE); } catch {}
+    location.reload();
+  });
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // ---------- Inici ----------
+  if (state.links && state.links.length) showSend();
+  else showSetup();
+</script>

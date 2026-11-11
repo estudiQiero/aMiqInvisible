@@ -1,0 +1,149 @@
+---
+// Amic invisible — pàgina que obre cada participant des del seu enllaç de
+// WhatsApp. Tot el contingut ve del fragment (#...) de l'URL, que el
+// navegador no envia mai al servidor.
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout
+  title="El teu amic invisible 🎁"
+  noindex
+  description="Obre l'enllaç per descobrir a qui li has de fer el regal."
+>
+  <main class="wrap">
+    <section id="ok" hidden>
+      <p id="event" class="event"></p>
+      <h1 id="hello">Hola!</h1>
+      <p class="muted">Toca el regal per descobrir a qui li has de fer el regal. Assegura't que no mira ningú 👀</p>
+
+      <button id="box" class="box" type="button" aria-label="Obre el regal">
+        <span class="lid">🎀</span>
+        <span class="present">🎁</span>
+      </button>
+
+      <div id="reveal" class="reveal" hidden>
+        <p class="muted">T'ha tocat fer el regal a…</p>
+        <p id="giftee" class="giftee"></p>
+        <dl id="details" class="details"></dl>
+        <p id="msg" class="msg" hidden></p>
+        <button id="hide" class="btn ghost small" type="button">🙈 Amaga-ho</button>
+      </div>
+    </section>
+
+    <section id="bad" class="card center" hidden>
+      <div style="font-size:48px" aria-hidden="true">🤔</div>
+      <h1>Aquest enllaç no funciona</h1>
+      <p class="muted">Potser s'ha tallat en copiar-lo. Demana a qui organitza l'amic invisible que te'l torni a enviar.</p>
+    </section>
+
+    <p class="foot muted"><a href="/">Vols organitzar el teu propi amic invisible?</a></p>
+  </main>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+</Layout>
+
+<style>
+  .wrap { text-align: center; padding-top: 40px; }
+  .event { text-transform: uppercase; letter-spacing: .12em; font-size: 13px; font-weight: 700; color: var(--gold); margin: 0 0 8px; }
+  h1 { font-size: 36px; color: var(--red); margin-bottom: 10px; }
+  .box {
+    position: relative; margin: 32px auto 8px; display: block;
+    border: 0; background: none; cursor: pointer; font-size: 120px; line-height: 1;
+    animation: bounce 1.8s ease-in-out infinite; padding: 10px;
+  }
+  .box .lid { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 54px; transition: transform .5s ease, opacity .5s ease; }
+  .box.open { animation: none; }
+  .box.open .lid { transform: translate(-50%, -120px) rotate(-30deg); opacity: 0; }
+  .box.open .present { display: inline-block; animation: pop .45s ease forwards; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 100% { transform: scale(0); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .box { animation: none; } }
+
+  .reveal { animation: fadeUp .5s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  .giftee {
+    font-family: 'Zilla Slab', Georgia, serif; font-weight: 700; font-size: 52px; line-height: 1.1;
+    color: var(--green); margin: 4px 0 20px; word-break: break-word;
+  }
+  .details { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+  .details :global(div) { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; min-width: 130px; }
+  .details :global(dt) { font-size: 12px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; }
+  .details :global(dd) { margin: 2px 0 0; font-weight: 600; }
+  .msg { background: var(--card); border: 1px dashed var(--line); border-radius: 12px; padding: 12px 16px; font-style: italic; max-width: 460px; margin: 0 auto 16px; }
+  .center { text-align: center; }
+  .foot { margin-top: 48px; font-size: 14px; }
+  .foot a { color: inherit; }
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+
+<script>
+  import { decodePayload } from '../lib/amic.js';
+  const $ = (s) => document.querySelector(s);
+
+  const data = decodePayload(location.hash.slice(1));
+  if (!data) {
+    $('#bad').hidden = false;
+  } else {
+    $('#ok').hidden = false;
+    if (data.e) { $('#event').textContent = data.e; document.title = `${data.e} · El teu amic invisible 🎁`; }
+    $('#hello').textContent = `Hola, ${data.n}!`;
+    $('#giftee').textContent = data.g;
+
+    const details = $('#details');
+    const addDetail = (label, value) => {
+      const div = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = label;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      div.append(dt, dd); details.append(div);
+    };
+    if (data.b) addDetail('Pressupost', data.b);
+    if (data.d) {
+      const date = new Date(`${data.d}T12:00:00`);
+      if (!isNaN(date)) addDetail('Data', date.toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' }));
+    }
+    if (data.m) { $('#msg').textContent = `“${data.m}”`; $('#msg').hidden = false; }
+
+    const box = $('#box');
+    box.addEventListener('click', () => {
+      if (box.classList.contains('open')) return;
+      box.classList.add('open');
+      setTimeout(() => {
+        box.hidden = true;
+        $('#reveal').hidden = false;
+        confetti();
+      }, 450);
+    });
+    $('#hide').addEventListener('click', () => {
+      $('#reveal').hidden = true;
+      box.hidden = false;
+      box.classList.remove('open');
+    });
+  }
+
+  function confetti() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const c = $('#confetti');
+    const ctx = c.getContext('2d');
+    const dpr = devicePixelRatio || 1;
+    c.width = innerWidth * dpr; c.height = innerHeight * dpr;
+    ctx.scale(dpr, dpr);
+    const colors = ['#B42318', '#166534', '#C8961E', '#25D366', '#F6EEE8'];
+    const parts = Array.from({ length: 140 }, () => ({
+      x: innerWidth / 2, y: innerHeight / 3,
+      vx: (Math.random() - 0.5) * 14, vy: Math.random() * -12 - 4,
+      s: Math.random() * 6 + 4, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    }));
+    let frame = 0;
+    (function tick() {
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      for (const p of parts) {
+        p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.color; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        ctx.restore();
+      }
+      if (++frame < 180) requestAnimationFrame(tick);
+      else ctx.clearRect(0, 0, innerWidth, innerHeight);
+    })();
+  }
+</script>
