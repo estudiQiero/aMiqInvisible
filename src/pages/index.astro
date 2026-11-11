@@ -67,6 +67,23 @@ import Layout from '../layouts/Layout.astro';
         <p class="muted">Envia a cada persona el seu enllaç. El resultat està amagat: només el veurà qui obri el seu enllaç.</p>
         <div class="progress"><div id="progress-bar"></div></div>
         <p id="progress-text" class="muted small"></p>
+
+        <div class="bulk">
+          <button id="bulk-mail" class="btn" type="button" hidden></button>
+          <button id="bulk-wa" class="btn wa" type="button" hidden></button>
+        </div>
+        <p id="bulk-status" class="bulk-status small" role="status" hidden></p>
+
+        <div id="wa-runner" class="wa-runner" hidden>
+          <p id="wa-runner-text" class="small"></p>
+          <a id="wa-runner-go" class="btn wa block big" target="_blank" rel="noopener"></a>
+          <p class="muted small">Envia el missatge a WhatsApp i torna aquí: el següent ja t'estarà esperant.</p>
+          <div class="wa-runner-actions">
+            <button id="wa-runner-skip" class="btn ghost small" type="button">Salta aquesta persona</button>
+            <button id="wa-runner-stop" class="btn ghost small" type="button">Atura</button>
+          </div>
+        </div>
+
         <ul id="links" class="links"></ul>
       </div>
       <div class="actions">
@@ -170,6 +187,17 @@ import Layout from '../layouts/Layout.astro';
   :global(.l-status.err) { color: #C2410C; font-weight: 600; }
   :global(.link-actions) { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  .bulk { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+  .bulk .btn { flex: 1 1 220px; }
+  .bulk-status { margin: 0 0 12px; font-weight: 600; color: #C2410C; }
+  .bulk-status.ok { color: #15803D; }
+  .wa-runner {
+    border: 2px solid var(--wa); border-radius: 16px; padding: 14px 16px; margin: 0 0 14px;
+    background: rgba(37,211,102,.07); text-align: center;
+  }
+  .wa-runner p { margin: 0; }
+  .wa-runner .big { margin: 10px 0; }
+  .wa-runner-actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
   .note { text-align: center; margin-top: 16px; }
 </style>
@@ -349,7 +377,15 @@ import Layout from '../layouts/Layout.astro';
       const res = await fetch('/api/enviar-correu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: l.contact, name: l.name, event: state.event.name.trim(), link: linkFor(l) }),
+        body: JSON.stringify({
+          to: l.contact,
+          name: l.name,
+          event: state.event.name.trim(),
+          budget: state.event.budget.trim(),
+          date: state.event.date,
+          msg: state.event.msg.trim(),
+          link: linkFor(l),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || (res.status === 429
@@ -359,10 +395,12 @@ import Layout from '../layouts/Layout.astro';
       button.textContent = '✉️ Torna a enviar';
       status.textContent = 'Correu enviat ✓';
       status.classList.add('ok');
+      return true;
     } catch (err) {
       button.textContent = '✉️ Envia per correu';
       status.textContent = err instanceof TypeError ? "No hi ha connexió. Torna-ho a provar." : err.message;
       status.classList.add('err');
+      return false;
     } finally {
       button.disabled = false;
     }
@@ -375,7 +413,111 @@ import Layout from '../layouts/Layout.astro';
     $('#progress-text').textContent = sent === total
       ? `Fet! Has enviat els ${total} enllaços. 🎉`
       : `Enviats ${sent} de ${total}`;
+    updateBulk();
   }
+
+  // ---------- Enviament en bloc ----------
+  const rows = new Map(); // link -> { mail, status, markSent }
+  let bulkRunning = false;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pendingEmails = () => state.links.filter((l) => !l.sent && isEmail(l.contact));
+  const pendingWhatsapps = () => state.links.filter((l) => !l.sent && !isEmail(l.contact));
+
+  function updateBulk() {
+    const mails = pendingEmails().length;
+    const was = pendingWhatsapps().length;
+    const bm = $('#bulk-mail');
+    const bw = $('#bulk-wa');
+    if (!bulkRunning) {
+      bm.hidden = mails === 0;
+      bm.textContent = `✉️ Envia tots els correus (${mails})`;
+    }
+    bw.hidden = was === 0 || !$('#wa-runner').hidden || bulkRunning;
+    bw.textContent = `Envia tots els WhatsApp (${was})`;
+  }
+
+  function showBulkStatus(text, ok) {
+    const el = $('#bulk-status');
+    el.textContent = text;
+    el.classList.toggle('ok', ok);
+    el.hidden = !text;
+  }
+
+  $('#bulk-mail').addEventListener('click', async () => {
+    const queue = pendingEmails();
+    if (!queue.length) return;
+    bulkRunning = true;
+    const bm = $('#bulk-mail');
+    bm.disabled = true;
+    $('#bulk-wa').hidden = true;
+    showBulkStatus('', true);
+    let failed = 0;
+    for (let i = 0; i < queue.length; i++) {
+      bm.textContent = `Enviant ${i + 1} de ${queue.length}…`;
+      const r = rows.get(queue[i]);
+      if (!(await sendEmail(queue[i], r.mail, r.status, r.markSent))) failed++;
+      // Una mica d'espai entre correus, per no topar amb els límits de Resend.
+      if (i < queue.length - 1) await sleep(700);
+    }
+    bulkRunning = false;
+    bm.disabled = false;
+    showBulkStatus(failed
+      ? `${failed} ${failed === 1 ? "correu no s'ha" : "correus no s'han"} pogut enviar. Els tens marcats en taronja a la llista: torna-ho a provar.`
+      : queue.length === 1 ? "Fet! S'ha enviat el correu. ✓" : `Fet! S'han enviat els ${queue.length} correus. ✓`, !failed);
+    updateBulk();
+  });
+
+  // WhatsApp no deixa enviar missatges sols: obrim els xats d'un en un i,
+  // quan la persona torna a l'app, ja té a punt el botó del següent.
+  let waQueue = [];
+  let waIndex = 0;
+  let waOpened = 0;
+
+  function renderRunner() {
+    const runner = $('#wa-runner');
+    if (waIndex >= waQueue.length) {
+      const done = waOpened;
+      stopRunner();
+      if (done) showBulkStatus(done === 1 ? 'Fet! Has obert el xat de WhatsApp. ✓' : `Fet! Has obert els ${done} xats de WhatsApp. ✓`, true);
+      return;
+    }
+    const l = waQueue[waIndex];
+    runner.hidden = false;
+    $('#wa-runner-text').textContent = `${waIndex + 1} de ${waQueue.length}`;
+    const go = $('#wa-runner-go');
+    go.href = whatsappUrl(l.contact, messageFor(l));
+    go.replaceChildren(
+      $('#link-tpl').content.querySelector('.l-wa svg').cloneNode(true),
+      document.createTextNode(`${waIndex === 0 ? 'Envia a' : 'Següent:'} ${l.name}`),
+    );
+    updateBulk();
+  }
+
+  function stopRunner() {
+    waQueue = [];
+    waIndex = 0;
+    waOpened = 0;
+    $('#wa-runner').hidden = true;
+    updateBulk();
+  }
+
+  $('#bulk-wa').addEventListener('click', () => {
+    waQueue = pendingWhatsapps();
+    waIndex = 0;
+    waOpened = 0;
+    showBulkStatus('', true);
+    renderRunner();
+    $('#wa-runner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $('#wa-runner-go').addEventListener('click', () => {
+    const l = waQueue[waIndex];
+    if (l) { rows.get(l)?.markSent(); waOpened++; }
+    waIndex++;
+    // Esperem que el navegador obri l'enllaç abans de canviar-lo pel següent.
+    setTimeout(renderRunner, 400);
+  });
+  $('#wa-runner-skip').addEventListener('click', () => { waIndex++; renderRunner(); });
+  $('#wa-runner-stop').addEventListener('click', stopRunner);
 
   function showSend() {
     $('#setup').hidden = true;
@@ -383,6 +525,9 @@ import Layout from '../layouts/Layout.astro';
     $('#send-title').textContent = state.event.name.trim() ? `Sorteig fet! · ${state.event.name.trim()}` : 'Sorteig fet!';
     const list = $('#links');
     list.innerHTML = '';
+    rows.clear();
+    stopRunner();
+    $('#bulk-status').hidden = true;
     state.links.forEach((l) => {
       const li = $('#link-tpl').content.firstElementChild.cloneNode(true);
       li.querySelector('.l-name').textContent = l.name;
@@ -395,6 +540,7 @@ import Layout from '../layouts/Layout.astro';
       const status = li.querySelector('.l-status');
       const wa = li.querySelector('.l-wa');
       const mail = li.querySelector('.l-mail');
+      rows.set(l, { mail, status, markSent });
       if (byEmail) {
         wa.remove();
         mail.hidden = false;

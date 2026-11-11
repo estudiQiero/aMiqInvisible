@@ -103,6 +103,8 @@ const { title, description, noindex = false } = Astro.props;
   }
 
   * { box-sizing: border-box; }
+  /* Que l'atribut hidden amagui sempre, encara que l'element tingui display propi (p. ex. .btn). */
+  [hidden] { display: none !important; }
   html, body { margin: 0; }
   body {
     background: var(--decor), var(--bg);
