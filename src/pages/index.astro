@@ -337,14 +337,14 @@ import Layout from '../layouts/Layout.astro';
     return { people, exclusions };
   }
 
-  function doDraw() {
+  async function doDraw() {
     const v = validate();
     if (v.error) return showError(v.error);
     const result = draw(v.people.map((p) => p.name), v.exclusions);
     if (!result) return showError('Amb aquestes exclusions no hi ha manera de fer el sorteig. Treu-ne alguna i torna-ho a provar.');
     showError('');
     const ev = state.event;
-    state.links = v.people.map((p) => ({
+    const links = v.people.map((p) => ({
       name: p.name,
       contact: p.contact,
       sent: false,
@@ -353,14 +353,42 @@ import Layout from '../layouts/Layout.astro';
         n: p.name, g: result.get(p.name),
       }),
     }));
+    const btn = $('#do-draw');
+    btn.disabled = true;
+    btn.textContent = 'Fent el sorteig…';
+    const short = await createShortLinks(links);
+    btn.disabled = false;
+    btn.textContent = '🎲 Fer el sorteig';
+    state.links = links;
     save();
     showSend();
+    if (!short) {
+      showBulkStatus("No s'han pogut crear els enllaços curts. S'enviaran els llargs, que funcionen igual.", false);
+    }
+  }
+
+  // Demana al servidor un enllaç curt (/r/<codi>) per a cada participant.
+  // Si falla, es queden els enllaços llargs, que funcionen igual.
+  async function createShortLinks(links) {
+    try {
+      const res = await fetch('/api/enllacos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokens: links.map((l) => l.token) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(data.codes) || data.codes.length !== links.length) return false;
+      links.forEach((l, i) => { l.short = data.codes[i]; });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   $('#do-draw').addEventListener('click', doDraw);
 
   // ---------- Enviament ----------
-  const linkFor = (l) => `${location.origin}/veure/#${l.token}`;
+  const linkFor = (l) => (l.short ? `${location.origin}/r/${l.short}` : `${location.origin}/veure/#${l.token}`);
 
   function messageFor(l) {
     const ev = state.event.name.trim();

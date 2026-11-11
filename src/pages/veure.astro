@@ -32,8 +32,8 @@ import Layout from '../layouts/Layout.astro';
 
     <section id="bad" class="card center" hidden>
       <div style="font-size:48px" aria-hidden="true">🤔</div>
-      <h1>Aquest enllaç no funciona</h1>
-      <p class="muted">Potser s'ha tallat en copiar-lo. Demana a qui organitza l'amic invisible que te'l torni a enviar.</p>
+      <h1 id="bad-title">Aquest enllaç no funciona</h1>
+      <p id="bad-text" class="muted">Potser s'ha tallat en copiar-lo. Demana a qui organitza l'amic invisible que te'l torni a enviar.</p>
     </section>
 
     <p class="foot muted"><a href="/">Vols organitzar el teu propi amic invisible?</a></p>
@@ -82,6 +82,10 @@ import Layout from '../layouts/Layout.astro';
   const data = decodePayload(location.hash.slice(1));
   if (!data) {
     $('#bad').hidden = false;
+    if (location.hash === '#caducat') {
+      $('#bad-title').textContent = 'Aquest enllaç ha caducat o no existeix';
+      $('#bad-text').textContent = "Els enllaços s'esborren 2 mesos després de l'intercanvi. Si encara el necessites, demana a qui organitza l'amic invisible que te'l torni a enviar.";
+    }
   } else {
     $('#ok').hidden = false;
     applyTheme(data.e);

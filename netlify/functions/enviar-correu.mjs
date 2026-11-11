@@ -10,12 +10,13 @@
 // Per evitar que algú faci servir aquesta funció per enviar correu brossa:
 // - el text del correu és fix; només hi canvien el nom, l'event, el
 //   pressupost, la data, el missatge (sense enllaços) i l'enllaç secret;
-// - l'enllaç ha de ser d'aquesta mateixa web (/veure/#...);
+// - l'enllaç ha de ser d'aquesta mateixa web (/r/<codi> o /veure/#...);
 // - un sol destinatari per petició i límits de llargada a tots els camps;
 // - Netlify limita les peticions per IP (vegeu `config` al final).
 // A més, el pla gratuït de Resend ja talla a 100 correus al dia.
 
 import { isEmail, isNadal } from '../../src/lib/amic.js';
+import { CODE_RE } from '../lib/enllacos-curts.mjs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), {
@@ -64,7 +65,10 @@ export default async (req) => {
 
   if (!isEmail(to)) return json(400, { error: 'El correu no sembla vàlid.' });
   if (!name) return json(400, { error: 'Falta el nom.' });
-  if (!link.startsWith(`${origin}/veure/#`) || link.length > 1500 || /\s/.test(link)) {
+  const shortPrefix = `${origin}/r/`;
+  const shortLink = link.startsWith(shortPrefix) && CODE_RE.test(link.slice(shortPrefix.length));
+  const longLink = link.startsWith(`${origin}/veure/#`) && link.length <= 1500 && !/\s/.test(link);
+  if (!shortLink && !longLink) {
     return json(400, { error: 'Enllaç no vàlid.' });
   }
 

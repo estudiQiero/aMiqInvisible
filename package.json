@@ -9,6 +9,7 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.1.9",
     "astro": "^7.1.3"
   }
 }
